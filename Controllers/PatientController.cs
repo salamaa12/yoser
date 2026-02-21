@@ -63,36 +63,48 @@ namespace Yoser_API.Controllers
             });
         }
 
-        // ================= 2. تحديث بيانات البروفايل =================
-        [HttpPut("update-profile")]
-        public async Task<IActionResult> UpdateProfile(UpdatePatientProfileDto dto)
+       // ================= 2. تحديث بيانات البروفايل =================
+[HttpPut("update-profile")]
+public async Task<IActionResult> UpdateProfile(UpdatePatientProfileDto dto)
+{
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    var profile = await _context.PatientProfiles
+        .FirstOrDefaultAsync(p => p.UserId == userId);
+
+    if (profile == null)
+    {
+        return BadRequest(new ApiResponse<object>
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var profile = await _context.PatientProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            Status = false,
+            Message = "البروفايل غير موجود."
+        });
+    }
 
-            if (profile == null)
-            {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Status = false,
-                    Message = "البروفايل غير موجود."
-                });
-            }
+    // تحديث الحقول فقط إذا تم إرسالها
+    if (dto.Age.HasValue)
+        profile.Age = dto.Age.Value;
 
-            // تحديث الحقول
-            profile.Age = dto.Age;
-            profile.ChronicDiseases = dto.MedicalCondition; // هنا استعملنا MedicalCondition من الـ DTO لملء ChronicDiseases
-            profile.EmergencyContact = dto.EmergencyContact;
+    if (dto.MedicalCondition != null)
+        profile.ChronicDiseases = dto.MedicalCondition;
 
-            _context.PatientProfiles.Update(profile);
-            await _context.SaveChangesAsync();
+    if (dto.EmergencyContact != null)
+        profile.EmergencyContact = dto.EmergencyContact;
 
-            return Ok(new ApiResponse<object>
-            {
-                Status = true,
-                Message = "تم تحديث البيانات الطبية بنجاح.",
-                Data = new { profile.Id, profile.Age, profile.ChronicDiseases }
-            });
+    await _context.SaveChangesAsync();
+
+    return Ok(new ApiResponse<object>
+    {
+        Status = true,
+        Message = "تم تحديث البيانات الطبية بنجاح.",
+        Data = new
+        {
+            profile.Id,
+            profile.Age,
+            profile.ChronicDiseases,
+            profile.EmergencyContact
         }
+    });
+}
     }
 }
